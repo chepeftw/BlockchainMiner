@@ -19,7 +19,7 @@ import (
 // +++++++++++++++++++++++++++
 // +++++++++ Go-Logging Conf
 // +++++++++++++++++++++++++++
-var log = logging.MustGetLogger("gossip")
+var log = logging.MustGetLogger("miner")
 
 // +++++++++ Global vars
 var me net.IP = net.ParseIP(bchainlibs.LocalhostAddr)
@@ -33,7 +33,6 @@ var output = make(chan string)
 var done = make(chan bool)
 
 var mining = make(chan string)
-
 
 // +++++++++ Unverified Blocks MAP with sync
 var unverifiedBlocks = bchainlibs.MapBlocks{ nil, make(map[string]bchainlibs.Packet) }
