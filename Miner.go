@@ -1,7 +1,7 @@
 package main
 
 import (
-    "os"
+    //"os"
     "net"
 	"math/rand"
     "encoding/json"
@@ -13,6 +13,9 @@ import (
 	"crypto/sha256"
 	"strings"
 	"time"
+	"sync"
+	"strconv"
+	"os"
 )
 
 
@@ -34,15 +37,19 @@ var done = make(chan bool)
 
 var mining = make(chan string)
 
+var randomGen = rand.New( rand.NewSource(time.Now().UnixNano()) )
+
 // +++++++++ Unverified Blocks MAP with sync
-var unverifiedBlocks = bchainlibs.MapBlocks{ nil, make(map[string]bchainlibs.Packet) }
+var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), sync.RWMutex{} }
 
 
 func toOutput(payload bchainlibs.Packet) {
+	log.Debug("Sending Packet with TID " + payload.TID + " to channel output")
 	bchainlibs.SendGeneric( output, payload, log )
 }
 
 func attendOutputChannel() {
+	log.Debug("Starting output channel")
 	bchainlibs.SendToNetwork( me.String(), bchainlibs.RouterPort, output, false, log, me)
 }
 
@@ -64,10 +71,19 @@ func attendInputChannel() {
 
 		case bchainlibs.UBlockType:
 			if !unverifiedBlocks.Has(tid) { // If it does not exists then
+				log.Debug("New Unverified Block to mine")
 				unverifiedBlocks.Add(tid, payload)
 
-				if ( rand.Intn(10000) % 2 ) == 0 {
-					mining <- tid
+				randNum := randomGen.Intn(10000)
+				coin := randNum % 2
+				log.Debug("Random Number is " + strconv.Itoa(randNum))
+				log.Debug("Coin toss is " + strconv.Itoa(coin))
+				if coin == 0 {
+					log.Debug("Mining true for " + tid)
+					log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+					go func() {
+						mining <- tid
+					}()
 				}
 			} else {
 				log.Info("RedundantTid = " + tid)
@@ -96,14 +112,14 @@ func attendInputChannel() {
 
 // Function that handles the buffer channel
 func attendMiningChannel() {
-
+	log.Debug("Starting mining channel")
 	for {
 		j, more := <-mining
 		if more {
 			// First we take the json, unmarshal it to an object
 			block := unverifiedBlocks.Get(j)
 			foundIt := false
-
+			log.Debug("Mining " + block.TID)
 			for i := 0; i < miningRetries ; i++  {
 				if !foundIt {
 					h := sha256.New()
@@ -112,16 +128,30 @@ func attendMiningChannel() {
 					h.Write([]byte( cryptoPuzzle ))
 					checksum := h.Sum(nil)
 					if strings.Contains(string(checksum), "00") {
+						log.Debug("Mining WIN => " + cryptoPuzzle)
+						log.Debug("Checksum => " + string(checksum))
+
 						foundIt = true
+
 						verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
 						toOutput( verified )
+
+						unverifiedBlocks.Del(block.TID)
+
+						log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 					}
 				}
 			}
 
 			if !foundIt {
-				time.Sleep( time.Millisecond * time.Duration( rand.Intn(100000) / 1000 ) )
-				mining <- block.TID
+				log.Debug("Rock and roll then")
+				go func() {
+					mining <- block.TID
+				}()
+
+				duration := randomGen.Intn(100000) / 100
+				log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
+				time.Sleep( time.Millisecond * time.Duration( duration ) )
 			}
 
 		} else {
@@ -152,6 +182,9 @@ func main() {
 
     targetSync := c.TargetSync
     miningRetries = c.MiningRetry
+	//Add mining wait time
+
+	//targetSync := float64(0)
 
 
 	// Logger configuration
