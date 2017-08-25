@@ -27,6 +27,7 @@ var log = logging.MustGetLogger("miner")
 // +++++++++ Global vars
 var me net.IP = net.ParseIP(bchainlibs.LocalhostAddr)
 var miningRetries = 100
+var miningWaitTime = 100
 var lastBlock bchainlibs.Packet = bchainlibs.Packet{}
 
 // +++++++++ Channels
@@ -149,7 +150,7 @@ func attendMiningChannel() {
 					mining <- block.TID
 				}()
 
-				duration := randomGen.Intn(100000) / 100
+				duration := randomGen.Intn(100000) / miningWaitTime
 				log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
 				time.Sleep( time.Millisecond * time.Duration( duration ) )
 			}
@@ -182,10 +183,7 @@ func main() {
 
     targetSync := c.TargetSync
     miningRetries = c.MiningRetry
-	//Add mining wait time
-
-	//targetSync := float64(0)
-
+	miningWaitTime = c.MiningWait
 
 	// Logger configuration
 	f := bchainlibs.PrepareLog( "miner" )
