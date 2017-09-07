@@ -10,10 +10,10 @@ import (
 
 var log2 = logging.MustGetLogger("test")
 
-func main() {
+func main_test() {
 
 	// Logger configuration
-	f := bchainlibs.PrepareLog( "test" )
+	f := bchainlibs.PrepareLog( "/var/log/golang", "test" )
 	defer f.Close()
 	backend := logging.NewLogBackend(f, "", 0)
 	backendFormatter := logging.NewBackendFormatter(backend, bchainlibs.LogFormat)

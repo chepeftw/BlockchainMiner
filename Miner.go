@@ -99,6 +99,12 @@ func attendInputChannel() {
 			lastBlock = payload
 		break
 
+		case bchainlibs.InternalPing:
+			log.Info("Receiving PING from router with TID = " + tid)
+			payload := bchainlibs.AssemblePong(me)
+			toOutput(payload)
+		break
+
 		}
 
 	} else {
@@ -184,9 +190,10 @@ func main() {
     targetSync := c.TargetSync
     miningRetries = c.MiningRetry
 	miningWaitTime = c.MiningWait
+	logPath := c.LogPath
 
 	// Logger configuration
-	f := bchainlibs.PrepareLog( "miner" )
+	f := bchainlibs.PrepareLog( logPath, "miner" )
 	defer f.Close()
 	backend := logging.NewLogBackend(f, "", 0)
 	backendFormatter := logging.NewBackendFormatter(backend, bchainlibs.LogFormat)
