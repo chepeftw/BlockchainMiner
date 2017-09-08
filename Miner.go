@@ -28,6 +28,7 @@ var log = logging.MustGetLogger("miner")
 var me net.IP = net.ParseIP(bchainlibs.LocalhostAddr)
 var miningRetries = 100
 var miningWaitTime = 100
+var cryptoPiece = "00"
 var lastBlock bchainlibs.Packet = bchainlibs.Packet{}
 
 // +++++++++ Channels
@@ -134,7 +135,7 @@ func attendMiningChannel() {
 					cryptoPuzzle := lastBlock.BID + block.TID + randString
 					h.Write([]byte( cryptoPuzzle ))
 					checksum := h.Sum(nil)
-					if strings.Contains(string(checksum), "00") {
+					if strings.Contains(string(checksum), cryptoPiece) {
 						log.Debug("Mining WIN => " + cryptoPuzzle)
 						log.Debug("Checksum => " + string(checksum))
 
@@ -190,6 +191,7 @@ func main() {
     targetSync := c.TargetSync
     miningRetries = c.MiningRetry
 	miningWaitTime = c.MiningWait
+	cryptoPiece = c.CryptoPiece
 	logPath := c.LogPath
 
 	// Logger configuration
