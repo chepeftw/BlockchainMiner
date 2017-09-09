@@ -125,41 +125,45 @@ func attendMiningChannel() {
 		j, more := <-mining
 		if more {
 			// First we take the json, unmarshal it to an object
-			block := unverifiedBlocks.Get(j)
-			foundIt := false
-			log.Debug("Mining " + block.TID)
-			for i := 0; i < miningRetries ; i++  {
-				if !foundIt {
-					h := sha256.New()
-					randString := bchainlibs.RandString(20)
-					cryptoPuzzle := lastBlock.BID + block.TID + randString
-					h.Write([]byte( cryptoPuzzle ))
-					checksum := h.Sum(nil)
-					if strings.Contains(string(checksum), cryptoPiece) {
-						log.Debug("Mining WIN => " + cryptoPuzzle)
-						log.Debug("Checksum => " + string(checksum))
+			if unverifiedBlocks.Has(j) {
+				block := unverifiedBlocks.Get(j)
+				foundIt := false
+				log.Debug("Mining " + block.TID)
+				for i := 0; i < miningRetries ; i++  {
+					if !foundIt {
+						h := sha256.New()
+						randString := bchainlibs.RandString(20)
+						cryptoPuzzle := lastBlock.BID + block.TID + randString
+						h.Write([]byte( cryptoPuzzle ))
+						checksum := h.Sum(nil)
+						if strings.Contains(string(checksum), cryptoPiece) {
+							log.Debug("Mining WIN => " + cryptoPuzzle)
+							log.Debug("Checksum => " + string(checksum))
 
-						foundIt = true
+							foundIt = true
 
-						verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
-						toOutput( verified )
+							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+							toOutput( verified )
 
-						unverifiedBlocks.Del(block.TID)
+							unverifiedBlocks.Del(block.TID)
 
-						log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+						}
 					}
 				}
-			}
 
-			if !foundIt {
-				log.Debug("Rock and roll then")
-				go func() {
-					mining <- block.TID
-				}()
+				if !foundIt {
+					log.Debug("Rock and roll then")
+					go func() {
+						mining <- block.TID
+					}()
 
-				duration := randomGen.Intn(100000) / miningWaitTime
-				log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
-				time.Sleep( time.Millisecond * time.Duration( duration ) )
+					duration := randomGen.Intn(100000) / miningWaitTime
+					log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
+					time.Sleep( time.Millisecond * time.Duration( duration ) )
+				}
+			} else {
+				log.Debug("Unverified block " + j + " is not in the list, moving on!")
 			}
 
 		} else {
