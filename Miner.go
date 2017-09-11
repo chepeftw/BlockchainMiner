@@ -142,15 +142,20 @@ func attendMiningChannel() {
 
 							foundIt = true
 
-							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
-							toOutput( verified )
+							// Myabe????
+							//if unverifiedBlocks.Has(j) {
+								verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+								toOutput(verified)
 
-							unverifiedBlocks.Del(block.TID)
+								unverifiedBlocks.Del(block.TID)
 
-							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+								log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+							//}
 						}
 					}
 				}
+
+				log.Info("HASHES_GENERATED=100")
 
 				if !foundIt {
 					log.Debug("Rock and roll then")
@@ -174,12 +179,6 @@ func attendMiningChannel() {
 
 	}
 }
-
-//
-//
-//func eqIp( a net.IP, b net.IP ) bool {
-//    return treesiplibs.CompareIPs(a, b)
-//}
 
 
 
