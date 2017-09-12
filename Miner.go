@@ -16,6 +16,7 @@ import (
 	"sync"
 	"strconv"
 	"os"
+	"bytes"
 )
 
 
@@ -30,16 +31,14 @@ var miningRetries = 100
 var miningWaitTime = 100
 var cryptoPiece = "00"
 var lastBlock bchainlibs.Packet = bchainlibs.Packet{}
+var randomGen = rand.New( rand.NewSource( time.Now().UnixNano() ) )
 
 // +++++++++ Channels
 // For the Miner the Input and Output will be to Router
 var input = make(chan string)
 var output = make(chan string)
 var done = make(chan bool)
-
 var mining = make(chan string)
-
-var randomGen = rand.New( rand.NewSource(time.Now().UnixNano()) )
 
 // +++++++++ Unverified Blocks MAP with sync
 var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), sync.RWMutex{} }
@@ -136,21 +135,25 @@ func attendMiningChannel() {
 						cryptoPuzzle := lastBlock.BID + block.TID + randString
 						h.Write([]byte( cryptoPuzzle ))
 						checksum := h.Sum(nil)
-						if strings.Contains(string(checksum), cryptoPiece) {
-							log.Debug("Mining WIN => " + cryptoPuzzle)
-							log.Debug("Checksum => " + string(checksum))
 
-							foundIt = true
+						n := bytes.IndexByte(checksum, 0)
+						checksumStr := string(checksum[:n])
 
+						if strings.Contains(checksumStr, cryptoPiece) {
 							// Myabe????
 							//if unverifiedBlocks.Has(j) {
-								verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
-								toOutput(verified)
+							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+							toOutput(verified)
 
-								unverifiedBlocks.Del(block.TID)
+							unverifiedBlocks.Del(block.TID)
 
-								log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 							//}
+
+							log.Debug("Mining WIN => " + cryptoPuzzle)
+							log.Debug("Checksum => " + checksumStr)
+							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+
+							foundIt = true
 						}
 					}
 				}
@@ -218,7 +221,7 @@ func main() {
     me = treesiplibs.SelfieIP()
     log.Info("Good to go, my ip is " + me.String())
 
-    // Lets prepare a address at any address at port 10000
+    // Lets prepare a address at any address at port bchainlibs.MinerPort
     ServerAddr,err := net.ResolveUDPAddr(bchainlibs.Protocol, bchainlibs.MinerPort)
     treesiplibs.CheckError(err, log)
 
