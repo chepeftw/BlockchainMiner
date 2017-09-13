@@ -41,8 +41,7 @@ var done = make(chan bool)
 var mining = make(chan string)
 
 // +++++++++ Unverified Blocks MAP with sync
-var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), sync.RWMutex{} }
-
+var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), make(map[string]int64), sync.RWMutex{} }
 
 func toOutput(payload bchainlibs.Packet) {
 	log.Debug("Sending Packet with TID " + payload.TID + " to channel output")
@@ -73,12 +72,14 @@ func attendInputChannel() {
 		case bchainlibs.UBlockType:
 			if !unverifiedBlocks.Has(tid) { // If it does not exists then
 				log.Debug("New Unverified Block to mine")
-				unverifiedBlocks.Add(tid, payload)
 
 				randNum := randomGen.Intn(10000)
 				coin := randNum % 2
 				log.Debug("Random Number is " + strconv.Itoa(randNum))
 				log.Debug("Coin toss is " + strconv.Itoa(coin))
+
+				unverifiedBlocks.Add(tid, payload)
+
 				if coin == 0 {
 					log.Debug("Mining true for " + tid)
 					log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
@@ -127,6 +128,7 @@ func attendMiningChannel() {
 			if unverifiedBlocks.Has(j) {
 				block := unverifiedBlocks.Get(j)
 				foundIt := false
+				startTime := int64(0)
 				log.Debug("Mining " + block.TID)
 				for i := 0; i < miningRetries ; i++  {
 					if !foundIt {
@@ -145,7 +147,7 @@ func attendMiningChannel() {
 							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
 							toOutput(verified)
 
-							unverifiedBlocks.Del(block.TID)
+							startTime = unverifiedBlocks.Del(block.TID)
 
 							//}
 
@@ -169,7 +171,11 @@ func attendMiningChannel() {
 					duration := randomGen.Intn(100000) / miningWaitTime
 					log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
 					time.Sleep( time.Millisecond * time.Duration( duration ) )
+				} else {
+					elapsedTime := time.Now().UnixNano() - startTime
+					log.Debug("MINER_WIN_TIME=" + strconv.FormatInt(elapsedTime, 10))
 				}
+
 			} else {
 				log.Debug("Unverified block " + j + " is not in the list, moving on!")
 			}
