@@ -40,7 +40,7 @@ var done = make(chan bool)
 var mining = make(chan string)
 
 // +++++++++ Unverified Blocks MAP with sync
-var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), make(map[string]int64), sync.RWMutex{} }
+var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), make(map[string]int64), make(map[string]int64), sync.RWMutex{} }
 
 func toOutput(payload bchainlibs.Packet) {
 	log.Debug("Sending Packet with TID " + payload.TID + " to channel output")
@@ -130,6 +130,7 @@ func attendMiningChannel() {
 				startTime := int64(0)
 				log.Debug("Mining " + block.TID)
 
+				hashGeneration := 0
 				for i := 0; i < miningRetries ; i++  {
 					if !foundIt {
 						h := sha256.New()
@@ -138,7 +139,7 @@ func attendMiningChannel() {
 						h.Write([]byte( cryptoPuzzle ))
 						checksum := h.Sum(nil)
 
-						//checksumStr := string(checksum[:h.Size()])
+						hashGeneration += 1
 
 						if strings.Contains(string(checksum), cryptoPiece) {
 							// Myabe????
@@ -159,7 +160,7 @@ func attendMiningChannel() {
 					}
 				}
 
-				log.Info("HASHES_GENERATED=100")
+				unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
 
 				if !foundIt {
 					log.Debug("Rock and roll then")
@@ -175,6 +176,9 @@ func attendMiningChannel() {
 					elapsedTimeMs := toMilliseconds( elapsedTimeNs )
 					log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
 					log.Debug("MINER_WIN_TIME_MS=" + strconv.FormatInt(elapsedTimeMs, 10))
+
+					hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
+					log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
 				}
 
 			} else {
