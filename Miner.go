@@ -139,6 +139,8 @@ func attendMiningChannel() {
 						h.Write([]byte( cryptoPuzzle ))
 						checksum := h.Sum(nil)
 
+						log.Debug("Iterating!")
+
 						n := bytes.IndexByte(checksum, 0)
 						checksumStr := string(checksum[:n])
 
@@ -158,6 +160,8 @@ func attendMiningChannel() {
 
 							foundIt = true
 						}
+					} else {
+						log.Debug("NULL Iterating!")
 					}
 				}
 
