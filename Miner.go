@@ -129,7 +129,7 @@ func attendMiningChannel() {
 				foundIt := false
 				startTime := int64(0)
 				log.Debug("Mining " + block.TID)
-				log.Debug("MiningRetries => " + strconv.Itoa(miningRetries))
+
 				for i := 0; i < miningRetries ; i++  {
 					if !foundIt {
 						h := sha256.New()
@@ -138,9 +138,7 @@ func attendMiningChannel() {
 						h.Write([]byte( cryptoPuzzle ))
 						checksum := h.Sum(nil)
 
-						log.Debug("Iterating!")
-
-						checksumStr := string(checksum[:h.Size()])
+						//checksumStr := string(checksum[:h.Size()])
 
 						if strings.Contains(string(checksum), cryptoPiece) {
 							// Myabe????
@@ -153,13 +151,11 @@ func attendMiningChannel() {
 							//}
 
 							log.Debug("Mining WIN => " + cryptoPuzzle)
-							log.Debug("Checksum => " + checksumStr)
+							//log.Debug("Checksum => " + checksumStr)
 							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 
 							foundIt = true
 						}
-					} else {
-						log.Debug("NULL Iterating!")
 					}
 				}
 
@@ -175,8 +171,8 @@ func attendMiningChannel() {
 					log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
 					time.Sleep( time.Millisecond * time.Duration( duration ) )
 				} else {
-					elapsedTime := time.Now().UnixNano() - startTime
-					log.Debug("MINER_WIN_TIME=" + strconv.FormatInt(elapsedTime, 10))
+					elapsedTimeMs := toMilliseconds( time.Now().UnixNano() - startTime )
+					log.Debug("MINER_WIN_TIME=" + strconv.FormatInt(elapsedTimeMs, 10))
 				}
 
 			} else {
@@ -190,6 +186,10 @@ func attendMiningChannel() {
 		}
 
 	}
+}
+
+func toMilliseconds( nano int64 ) int64 {
+	return nano / int64(time.Millisecond)
 }
 
 
