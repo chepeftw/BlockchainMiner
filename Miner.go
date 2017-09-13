@@ -130,6 +130,7 @@ func attendMiningChannel() {
 				foundIt := false
 				startTime := int64(0)
 				log.Debug("Mining " + block.TID)
+				log.Debug("MiningRetries => " + strconv.Itoa(miningRetries))
 				for i := 0; i < miningRetries ; i++  {
 					if !foundIt {
 						h := sha256.New()
@@ -141,7 +142,7 @@ func attendMiningChannel() {
 						n := bytes.IndexByte(checksum, 0)
 						checksumStr := string(checksum[:n])
 
-						if strings.Contains(checksumStr, cryptoPiece) {
+						if strings.Contains(string(checksum), cryptoPiece) {
 							// Myabe????
 							//if unverifiedBlocks.Has(j) {
 							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
