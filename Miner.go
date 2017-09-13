@@ -141,8 +141,7 @@ func attendMiningChannel() {
 
 						log.Debug("Iterating!")
 
-						n := bytes.IndexByte(checksum, 0)
-						checksumStr := string(checksum[:n])
+						checksumStr := string(checksum[:h.Size()])
 
 						if strings.Contains(string(checksum), cryptoPiece) {
 							// Myabe????
