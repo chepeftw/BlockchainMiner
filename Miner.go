@@ -171,8 +171,10 @@ func attendMiningChannel() {
 					log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
 					time.Sleep( time.Millisecond * time.Duration( duration ) )
 				} else {
-					elapsedTimeMs := toMilliseconds( time.Now().UnixNano() - startTime )
-					log.Debug("MINER_WIN_TIME=" + strconv.FormatInt(elapsedTimeMs, 10))
+					elapsedTimeNs := time.Now().UnixNano() - startTime
+					elapsedTimeMs := toMilliseconds( elapsedTimeNs )
+					log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
+					log.Debug("MINER_WIN_TIME_MS=" + strconv.FormatInt(elapsedTimeMs, 10))
 				}
 
 			} else {
