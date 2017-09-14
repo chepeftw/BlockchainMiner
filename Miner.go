@@ -163,14 +163,14 @@ func attendMiningChannel() {
 				unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
 
 				if !foundIt {
-					log.Debug("Rock and roll then")
+					//log.Debug("Rock and roll then")
 					go func() {
 						mining <- block.TID
 					}()
 
-					duration := randomGen.Intn(100000) / miningWaitTime
-					log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
-					time.Sleep( time.Millisecond * time.Duration( duration ) )
+					//duration := randomGen.Intn(100000) / miningWaitTime
+					//log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
+					//time.Sleep( time.Millisecond * time.Duration( duration ) )
 				} else {
 					elapsedTimeNs := time.Now().UnixNano() - startTime
 					elapsedTimeMs := toMilliseconds( elapsedTimeNs )
