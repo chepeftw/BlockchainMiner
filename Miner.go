@@ -183,6 +183,9 @@ func attendMiningChannel() {
 
 			} else {
 				log.Debug("Unverified block " + j + " is not in the list, moving on!")
+
+				hashesGenerated := unverifiedBlocks.GetDelHashesCount(j)
+				log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
 			}
 
 		} else {
