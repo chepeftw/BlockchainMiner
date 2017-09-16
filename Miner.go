@@ -137,39 +137,55 @@ func attendMiningChannel() {
 					log.Debug("Mining " + block.TID)
 				}
 
-				hashGeneration := 0
-				for i := 0; i < miningRetries ; i++  {
-					if !foundIt {
-						h := sha256.New()
-						randString := bchainlibs.RandString(20)
-						cryptoPuzzle := lastBlock.BID + block.TID + randString
-						h.Write([]byte( cryptoPuzzle ))
-						checksum := h.Sum(nil)
-
-						hashGeneration += 1
-
-						//if strings.Contains(string(checksum), cryptoPiece) {
-						if strings.HasPrefix(string(checksum), cryptoPiece) {
-							// Myabe????
-							//if unverifiedBlocks.Has(j) {
-							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
-							toOutput(verified)
-
-							startTime = unverifiedBlocks.Del(block.TID)
-
-							//}
-
-							log.Debug("Mining WIN => " + cryptoPuzzle)
-							log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
-							log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
-							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
-
-							foundIt = true
+				// Time to verify
+				validity := false
+				bblock := block.Block
+				prevHop := bblock.PreviousHop
+				if prevHop.String() == bchainlibs.NullhostAddr && eqIp(bblock.ActualHop, bblock.Source) {
+					validity = true
+				} else if lastBlock.Block != nil {
+					if lastBlock.Block.ActualHop != nil {
+						if eqIp( prevHop, lastBlock.Block.ActualHop ) {
+							validity = true
 						}
 					}
 				}
 
-				unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
+				if validity {
+					hashGeneration := 0
+					for i := 0; i < miningRetries ; i++  {
+						if !foundIt {
+							h := sha256.New()
+							randString := bchainlibs.RandString(20)
+							cryptoPuzzle := lastBlock.BID + block.TID + randString
+							h.Write([]byte( cryptoPuzzle ))
+							checksum := h.Sum(nil)
+
+							hashGeneration += 1
+
+							//if strings.Contains(string(checksum), cryptoPiece) {
+							if strings.HasPrefix(string(checksum), cryptoPiece) {
+								// Myabe????
+								//if unverifiedBlocks.Has(j) {
+								verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+								toOutput(verified)
+
+								startTime = unverifiedBlocks.Del(block.TID)
+
+								//}
+
+								log.Debug("Mining WIN => " + cryptoPuzzle)
+								log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
+								log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
+								log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+
+								foundIt = true
+							}
+						}
+					}
+
+					unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
+				}
 
 				if !foundIt {
 					//log.Debug("Rock and roll then")
@@ -210,7 +226,9 @@ func toMilliseconds( nano int64 ) int64 {
 	return nano / int64(time.Millisecond)
 }
 
-
+func eqIp( a net.IP, b net.IP ) bool {
+	return treesiplibs.CompareIPs(a, b)
+}
 
 func main() {
 
