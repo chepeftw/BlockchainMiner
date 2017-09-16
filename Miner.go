@@ -16,6 +16,7 @@ import (
 	"sync"
 	"strconv"
 	"os"
+	"encoding/hex"
 )
 
 
@@ -159,6 +160,7 @@ func attendMiningChannel() {
 							//}
 
 							log.Debug("Mining WIN => " + cryptoPuzzle)
+							log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
 							log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
 							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 
