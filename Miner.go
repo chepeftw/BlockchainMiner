@@ -27,7 +27,7 @@ var log = logging.MustGetLogger("miner")
 // +++++++++ Global vars
 var me net.IP = net.ParseIP(bchainlibs.LocalhostAddr)
 var miningRetries = 100
-var miningWaitTime = 100
+//var miningWaitTime = 100
 var cryptoPiece = "00"
 var lastBlock bchainlibs.Packet = bchainlibs.Packet{}
 var randomGen = rand.New( rand.NewSource( time.Now().UnixNano() ) )
@@ -141,7 +141,8 @@ func attendMiningChannel() {
 
 						hashGeneration += 1
 
-						if strings.Contains(string(checksum), cryptoPiece) {
+						//if strings.Contains(string(checksum), cryptoPiece) {
+						if strings.HasPrefix(string(checksum), cryptoPiece) {
 							// Myabe????
 							//if unverifiedBlocks.Has(j) {
 							verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
@@ -152,7 +153,7 @@ func attendMiningChannel() {
 							//}
 
 							log.Debug("Mining WIN => " + cryptoPuzzle)
-							//log.Debug("Checksum => " + checksumStr)
+							log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
 							log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 
 							foundIt = true
@@ -214,7 +215,7 @@ func main() {
 
     targetSync := c.TargetSync
     miningRetries = c.MiningRetry
-	miningWaitTime = c.MiningWait
+	//miningWaitTime = c.MiningWait
 	cryptoPiece = c.CryptoPiece
 	logPath := c.LogPath
 
