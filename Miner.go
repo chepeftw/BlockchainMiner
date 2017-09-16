@@ -132,7 +132,7 @@ func attendMiningChannel() {
 				foundIt := false
 				startTime := int64(0)
 
-				if ( globalMiningCount % 20 ) == 0 {
+				if ( globalMiningCount % 100 ) == 0 {
 					log.Debug("Mining " + block.TID)
 				}
 
