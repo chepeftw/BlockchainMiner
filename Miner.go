@@ -120,15 +120,21 @@ func attendInputChannel() {
 // Function that handles the buffer channel
 func attendMiningChannel() {
 	log.Debug("Starting mining channel")
+	globalMiningCount := int64(0)
+
 	for {
 		j, more := <-mining
 		if more {
 			// First we take the json, unmarshal it to an object
 			if unverifiedBlocks.Has(j) {
+				globalMiningCount++
 				block := unverifiedBlocks.Get(j)
 				foundIt := false
 				startTime := int64(0)
-				log.Debug("Mining " + block.TID)
+
+				if ( globalMiningCount % 20000 ) == 0 {
+					log.Debug("Mining " + block.TID)
+				}
 
 				hashGeneration := 0
 				for i := 0; i < miningRetries ; i++  {
