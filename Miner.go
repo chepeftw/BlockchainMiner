@@ -121,7 +121,7 @@ func attendInputChannel() {
 // Function that handles the buffer channel
 func attendMiningChannel() {
 	log.Debug("Starting mining channel")
-	globalMiningCount := int64(0)
+	globalMiningCount := int64(1)
 
 	for {
 		j, more := <-mining
@@ -152,6 +152,8 @@ func attendMiningChannel() {
 				}
 
 				if validity {
+					log.Debug("Valid TRUE!" + block.TID)
+
 					hashGeneration := 0
 					for i := 0; i < miningRetries ; i++  {
 						if !foundIt {
