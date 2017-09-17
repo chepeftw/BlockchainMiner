@@ -197,14 +197,14 @@ func attendMiningChannel() {
 					} else {
 						waitQueue = append( waitQueue, j )
 
-						if len(waitQueue) > 1 {
+						if len(waitQueue) > 0 {
 							jj := waitQueue[0]
 							waitQueue = waitQueue[1:]
 
 							go func() {
 								duration := randomGen.Intn(100000) / 100
 								time.Sleep( time.Millisecond * time.Duration( 1000 + duration ) )
-								log.Debug("RESCHEDULE => " + strconv.Itoa(1000 + duration))
+								log.Debug("RESCHEDULE " + jj + " => " + strconv.Itoa(1000 + duration))
 								mining <- jj
 							}()
 						}
