@@ -124,104 +124,121 @@ func attendInputChannel() {
 func attendMiningChannel() {
 	log.Debug("Starting mining channel")
 	globalMiningCount := int64(1)
-	//roaming := true
 
 	for {
 		j, more := <-mining
 		if more {
 			// First we take the json, unmarshal it to an object
 			if unverifiedBlocks.Has(j) {
-				globalMiningCount++
+
 				block := unverifiedBlocks.Get(j)
 				foundIt := false
 				startTime := int64(0)
+				validity := true
 
-				if ( globalMiningCount % 100 ) == 0 {
-					log.Debug("Mining " + block.TID)
-				}
+				for unverifiedBlocks.Has(j) && !foundIt && validity {
 
-				// Time to verify
-				validity := false
-				bblock := block.Block
-				prevHop := bblock.PreviousHop
-				if prevHop.String() == bchainlibs.NullhostAddr && eqIp(bblock.ActualHop, bblock.Source) {
-					validity = true
-				} else if lastBlock.Block != nil {
-					if lastBlock.Block.ActualHop != nil {
-						if eqIp( prevHop, lastBlock.Block.ActualHop ) {
-							validity = true
-						}
+					globalMiningCount++
+					validity = false
+
+					if ( globalMiningCount % 100 ) == 0 {
+						log.Debug("Mining " + block.TID)
 					}
-				}
 
-				if validity {
-					//roaming = false
-
-					hashGeneration := 0
-					for i := 0; i < miningRetries ; i++  {
-						if !foundIt {
-							h := sha256.New()
-							randString := bchainlibs.RandString(20)
-							cryptoPuzzle := lastBlock.BID + block.TID + randString
-							h.Write([]byte( cryptoPuzzle ))
-							checksum := h.Sum(nil)
-
-							hashGeneration += 1
-
-							//if strings.Contains(string(checksum), cryptoPiece) {
-							if strings.HasPrefix(string(checksum), cryptoPiece) {
-								// Myabe????
-								//if unverifiedBlocks.Has(j) {
-								verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
-								toOutput(verified)
-
-								startTime = unverifiedBlocks.Del(block.TID)
-
-								//}
-
-								log.Debug("Mining WIN => " + cryptoPuzzle)
-								log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
-								log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
-								log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
-
-								foundIt = true
+					// Time to verify
+					bblock := block.Block
+					prevHop := bblock.PreviousHop
+					if prevHop.String() == bchainlibs.NullhostAddr && eqIp(bblock.ActualHop, bblock.Source) {
+						validity = true
+					} else if lastBlock.Block != nil {
+						if lastBlock.Block.ActualHop != nil {
+							if eqIp( prevHop, lastBlock.Block.ActualHop ) {
+								validity = true
 							}
 						}
 					}
 
-					unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
-				} else {
-					waitQueue = append( waitQueue, j )
+					if validity {
+						//roaming = false
 
-					//if roaming && len(waitQueue) > 1 {
-					//	jj := waitQueue[0]
-					//	waitQueue = waitQueue[1:]
-					//
+						hashGeneration := 0
+						for i := 0; i < miningRetries ; i++  {
+							if !foundIt {
+								h := sha256.New()
+								randString := bchainlibs.RandString(20)
+								cryptoPuzzle := lastBlock.BID + block.TID + randString
+								h.Write([]byte( cryptoPuzzle ))
+								checksum := h.Sum(nil)
+
+								hashGeneration += 1
+
+								//if strings.Contains(string(checksum), cryptoPiece) {
+								if strings.HasPrefix(string(checksum), cryptoPiece) {
+									// Myabe????
+									//if unverifiedBlocks.Has(j) {
+									verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+									toOutput(verified)
+
+									startTime = unverifiedBlocks.Del(block.TID)
+
+									//}
+
+									log.Debug("Mining WIN => " + cryptoPuzzle)
+									log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
+									log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
+									log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+
+									foundIt = true
+								}
+							}
+						}
+
+						unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
+					} else {
+						waitQueue = append( waitQueue, j )
+
+						if len(waitQueue) > 1 {
+							jj := waitQueue[0]
+							waitQueue = waitQueue[1:]
+
+							go func() {
+								duration := randomGen.Intn(100000) / 100
+								time.Sleep( time.Millisecond * time.Duration( 1000 + duration ) )
+								mining <- jj
+							}()
+						}
+					}
+
+					//if !foundIt && validity {
+					//	//log.Debug("Rock and roll then")
 					//	go func() {
-					//		mining <- jj
+					//		mining <- block.TID
 					//	}()
-					//}
+
+						//duration := randomGen.Intn(100000) / miningWaitTime
+						//log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
+						//time.Sleep( time.Millisecond * time.Duration( duration ) )
+					//} else
+
+					if foundIt {
+						elapsedTimeNs := time.Now().UnixNano() - startTime
+						elapsedTimeMs := toMilliseconds( elapsedTimeNs )
+						log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
+						log.Debug("MINER_WIN_TIME_MS=" + strconv.FormatInt(elapsedTimeMs, 10))
+
+						hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
+						log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
+
+						//roaming = true
+					}
+
 				}
 
-				if !foundIt && validity {
-					//log.Debug("Rock and roll then")
-					go func() {
-						mining <- block.TID
-					}()
+				if !unverifiedBlocks.Has(j) {
+					log.Debug("Unverified block " + j + " is not in the list, moving on!")
 
-					//duration := randomGen.Intn(100000) / miningWaitTime
-					//log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
-					//time.Sleep( time.Millisecond * time.Duration( duration ) )
-				} else if foundIt {
-					elapsedTimeNs := time.Now().UnixNano() - startTime
-					elapsedTimeMs := toMilliseconds( elapsedTimeNs )
-					log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
-					log.Debug("MINER_WIN_TIME_MS=" + strconv.FormatInt(elapsedTimeMs, 10))
-
-					hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
+					hashesGenerated := unverifiedBlocks.GetDelHashesCount(j)
 					log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
-
-					//roaming = true
 				}
 
 			} else {
