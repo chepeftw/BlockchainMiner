@@ -40,6 +40,8 @@ var output = make(chan string)
 var done = make(chan bool)
 var mining = make(chan string)
 
+var waitQueue []string
+
 // +++++++++ Unverified Blocks MAP with sync
 var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), make(map[string]int64), make(map[string]int64), sync.RWMutex{} }
 
@@ -122,6 +124,7 @@ func attendInputChannel() {
 func attendMiningChannel() {
 	log.Debug("Starting mining channel")
 	globalMiningCount := int64(1)
+	roaming := true
 
 	for {
 		j, more := <-mining
@@ -153,6 +156,7 @@ func attendMiningChannel() {
 
 				if validity {
 					log.Debug("Valid TRUE!" + block.TID)
+					roaming = false
 
 					hashGeneration := 0
 					for i := 0; i < miningRetries ; i++  {
@@ -187,9 +191,20 @@ func attendMiningChannel() {
 					}
 
 					unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
+				} else {
+					waitQueue = append( waitQueue, j )
+
+					if roaming && len(waitQueue) > 1 {
+						jj := waitQueue[0]
+						waitQueue = waitQueue[1:]
+
+						go func() {
+							mining <- jj
+						}()
+					}
 				}
 
-				if !foundIt {
+				if !foundIt && validity {
 					//log.Debug("Rock and roll then")
 					go func() {
 						mining <- block.TID
@@ -198,7 +213,7 @@ func attendMiningChannel() {
 					//duration := randomGen.Intn(100000) / miningWaitTime
 					//log.Debug("Repeat mining! But first waiting for " + strconv.Itoa(duration) + "ms")
 					//time.Sleep( time.Millisecond * time.Duration( duration ) )
-				} else {
+				} else if foundIt {
 					elapsedTimeNs := time.Now().UnixNano() - startTime
 					elapsedTimeMs := toMilliseconds( elapsedTimeNs )
 					log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
@@ -206,6 +221,8 @@ func attendMiningChannel() {
 
 					hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
 					log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
+
+					roaming = true
 				}
 
 			} else {
