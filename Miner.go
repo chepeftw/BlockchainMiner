@@ -155,7 +155,6 @@ func attendMiningChannel() {
 				}
 
 				if validity {
-					log.Debug("Valid TRUE!" + block.TID)
 					//roaming = false
 
 					hashGeneration := 0
