@@ -204,6 +204,7 @@ func attendMiningChannel() {
 							go func() {
 								duration := randomGen.Intn(100000) / 100
 								time.Sleep( time.Millisecond * time.Duration( 1000 + duration ) )
+								log.Debug("RESCHEDULE => " + strconv.Itoa(1000 + duration))
 								mining <- jj
 							}()
 						}
@@ -234,7 +235,7 @@ func attendMiningChannel() {
 
 				}
 
-				if !unverifiedBlocks.Has(j) {
+				if !unverifiedBlocks.Has(j) && !foundIt {
 					log.Debug("Unverified block " + j + " is not in the list, moving on!")
 
 					hashesGenerated := unverifiedBlocks.GetDelHashesCount(j)
