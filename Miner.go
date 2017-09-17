@@ -124,7 +124,7 @@ func attendInputChannel() {
 func attendMiningChannel() {
 	log.Debug("Starting mining channel")
 	globalMiningCount := int64(1)
-	roaming := true
+	//roaming := true
 
 	for {
 		j, more := <-mining
@@ -156,7 +156,7 @@ func attendMiningChannel() {
 
 				if validity {
 					log.Debug("Valid TRUE!" + block.TID)
-					roaming = false
+					//roaming = false
 
 					hashGeneration := 0
 					for i := 0; i < miningRetries ; i++  {
@@ -194,14 +194,14 @@ func attendMiningChannel() {
 				} else {
 					waitQueue = append( waitQueue, j )
 
-					if roaming && len(waitQueue) > 1 {
-						jj := waitQueue[0]
-						waitQueue = waitQueue[1:]
-
-						go func() {
-							mining <- jj
-						}()
-					}
+					//if roaming && len(waitQueue) > 1 {
+					//	jj := waitQueue[0]
+					//	waitQueue = waitQueue[1:]
+					//
+					//	go func() {
+					//		mining <- jj
+					//	}()
+					//}
 				}
 
 				if !foundIt && validity {
@@ -222,7 +222,7 @@ func attendMiningChannel() {
 					hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
 					log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
 
-					roaming = true
+					//roaming = true
 				}
 
 			} else {
