@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"os"
 	"encoding/hex"
+	"github.com/onrik/gomerkle"
 )
 
 
@@ -26,11 +27,11 @@ import (
 var log = logging.MustGetLogger("miner")
 
 // +++++++++ Global vars
-var me net.IP = net.ParseIP(bchainlibs.LocalhostAddr)
+var me = net.ParseIP(bchainlibs.LocalhostAddr)
 var miningRetries = 100
 //var miningWaitTime = 100
 var cryptoPiece = "00"
-var lastBlock bchainlibs.Packet = bchainlibs.Packet{}
+var lastBlock = bchainlibs.Packet{}
 var randomGen = rand.New( rand.NewSource( time.Now().UnixNano() ) )
 
 // +++++++++ Channels
@@ -42,11 +43,13 @@ var mining = make(chan string)
 
 var waitQueue []string
 
+var transactions map[string]bchainlibs.Packet
+
 // +++++++++ Unverified Blocks MAP with sync
 var unverifiedBlocks = bchainlibs.MapBlocks{ make(map[string]bchainlibs.Packet), make(map[string]int64), make(map[string]int64), sync.RWMutex{} }
 
 func toOutput(payload bchainlibs.Packet) {
-	log.Debug("Sending Packet with TID " + payload.TID + " to channel output")
+	log.Debug("Sending Packet with ID " + payload.ID + " to channel output")
 	bchainlibs.SendGeneric( output, payload, log )
 }
 
@@ -67,44 +70,91 @@ func attendInputChannel() {
 	    json.Unmarshal([]byte(j), &payload)
 
 		//source := payload.Source
-		tid := payload.TID
+		id := payload.ID
 
 		switch payload.Type {
 
-		case bchainlibs.UBlockType:
-			if !unverifiedBlocks.Has(tid) { // If it does not exists then
-				log.Debug("New Unverified Block to mine")
+		case bchainlibs.TransactionType:
 
-				randNum := randomGen.Intn(10000)
-				coin := randNum % 2
-				log.Debug("Random Number is " + strconv.Itoa(randNum))
-				log.Debug("Coin toss is " + strconv.Itoa(coin))
+			if _, ok := transactions[ id ]; !ok {
+				transactions[ id ] = payload
 
-				unverifiedBlocks.Add(tid, payload)
-
-				if coin == 0 {
-					log.Debug("Mining true for " + tid)
-					log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
-					go func() {
-						mining <- tid
-					}()
+				// Check for query completeness
+				count := 0
+				queryID := payload.Transaction.ID
+				data := make([][]byte, 5)
+				for _, element := range transactions {
+					if queryID == element.Transaction.ID {
+						data[count] = []byte(element.Transaction.Data.String())
+						count++
+					}
 				}
+
+				if count == 4 {
+					// AssembleMerkleTree ... then put it in unverifiedblocks and call pow or any other mechanism
+
+					tree := gomerkle.NewTree(sha256.New())
+					tree.AddData(data...)
+
+					err := tree.Generate()
+					if err != nil {
+						panic(err)
+					}
+
+					merkleTreeRoot := hex.EncodeToString(tree.Root())
+					log.Info("Merkle Tree Root = " + merkleTreeRoot)
+
+					if !unverifiedBlocks.Has(merkleTreeRoot) { // If it does not exists then
+						log.Debug("New Unverified Block to mine with merkle tree root = " + merkleTreeRoot)
+
+						transactionDatas := make([]bchainlibs.TransactionData, 4)
+						for _, element := range transactions {
+							if queryID == element.Transaction.ID {
+								transactionDatas[count] = *element.Transaction.Data
+							}
+						}
+
+						newBlock := bchainlibs.CreateBlock(me, queryID, merkleTreeRoot, transactionDatas)
+
+						pow(merkleTreeRoot, newBlock)
+					} else {
+						log.Info("Redundant Merkle Tree Root = " + merkleTreeRoot)
+					}
+				}
+
 			} else {
-				log.Info("RedundantTid = " + tid)
+				log.Info("RedundantID = " + id)
 			}
+
 		break
 
 		case bchainlibs.LastBlockType:
-			if unverifiedBlocks.Has(tid) { // If it does exists then
-				unverifiedBlocks.Del(tid)
+			merkleTreeRoot := payload.Block.MerkleTreeRoot
+			queryID := payload.Block.QueryID
+
+			if unverifiedBlocks.Has(merkleTreeRoot) { // If it does exists then
+				unverifiedBlocks.Del(merkleTreeRoot)
+			}
+
+			for _, element := range payload.Block.Transactions {
+				for key, element2 := range transactions {
+					if queryID == element2.Transaction.ID {
+						sum1 := sha256.Sum256([]byte( element.String() ))
+						sum2 := sha256.Sum256([]byte( element2.Transaction.Data.String() ))
+
+						if sum1 == sum2 {
+							delete( transactions, key )
+						}
+					}
+				}
 			}
 
 			lastBlock = payload
 		break
 
 		case bchainlibs.InternalPing:
-			log.Info("Receiving PING from router with TID = " + tid)
-			payload := bchainlibs.AssemblePong(me)
+			log.Info("Receiving PING from router with ID = " + id)
+			payload := bchainlibs.BuildPong(me)
 			toOutput(payload)
 		break
 
@@ -117,6 +167,23 @@ func attendInputChannel() {
 	}
 
     }
+}
+
+func pow(merkle string, payload bchainlibs.Packet) {
+	randNum := randomGen.Intn(10000)
+	coin := randNum % 2
+	log.Debug("Random Number is " + strconv.Itoa(randNum))
+	log.Debug("Coin toss is " + strconv.Itoa(coin))
+
+	unverifiedBlocks.Add(merkle, payload)
+
+	if coin == 0 {
+		log.Debug("Mining true for merkle tree root =" + merkle)
+		log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
+		go func() {
+			mining <- merkle
+		}()
+	}
 }
 
 
@@ -142,21 +209,12 @@ func attendMiningChannel() {
 					validity = false
 
 					if ( globalMiningCount % 100 ) == 0 {
-						log.Debug("Mining " + block.TID)
+						log.Debug("Mining " + block.ID)
 					}
 
 					// Time to verify
-					bblock := block.Block
-					prevHop := bblock.PreviousHop
-					if prevHop.String() == bchainlibs.NullhostAddr && eqIp(bblock.ActualHop, bblock.Source) {
-						validity = true
-					} else if lastBlock.Block != nil {
-						if lastBlock.Block.ActualHop != nil {
-							if eqIp( prevHop, lastBlock.Block.ActualHop ) {
-								validity = true
-							}
-						}
-					}
+					// Validation based on the query
+					validity = true
 
 					if validity {
 						//roaming = false
@@ -164,28 +222,26 @@ func attendMiningChannel() {
 						hashGeneration := 0
 						for i := 0; i < miningRetries ; i++  {
 							if !foundIt {
-								h := sha256.New()
 								randString := bchainlibs.RandString(20)
-								cryptoPuzzle := lastBlock.BID + block.TID + randString
-								h.Write([]byte( cryptoPuzzle ))
-								checksum := h.Sum(nil)
+
+								information := lastBlock.Block.ID + block.Block.MerkleTreeRoot + randString
+								checksum := bchainlibs.MyCalculateSHA(information)
 
 								hashGeneration += 1
 
 								//if strings.Contains(string(checksum), cryptoPiece) {
-								if strings.HasPrefix(string(checksum), cryptoPiece) {
+								if strings.HasPrefix(checksum, cryptoPiece) {
 									// Myabe????
 									//if unverifiedBlocks.Has(j) {
-									verified := bchainlibs.AssembleVerifiedBlock(block, lastBlock.BID, randString, cryptoPuzzle, me)
+									verified := bchainlibs.BuildBlock(block, lastBlock.Block.ID, randString, checksum, me)
 									toOutput(verified)
 
-									startTime = unverifiedBlocks.Del(block.TID)
+									startTime = unverifiedBlocks.Del(block.Block.MerkleTreeRoot)
 
 									//}
 
-									log.Debug("Mining_WIN => " + cryptoPuzzle)
-									log.Debug("Checksum => " + hex.EncodeToString( checksum ) )
-									log.Debug("Checksum len => " + strconv.Itoa( len(string(checksum)) ) )
+									log.Debug("Mining_WIN => " + checksum)
+									log.Debug("randString => " + randString )
 									log.Debug("unverifiedBlocks => " + unverifiedBlocks.String())
 
 									foundIt = true
@@ -193,7 +249,7 @@ func attendMiningChannel() {
 							}
 						}
 
-						unverifiedBlocks.AddHashesCount(block.TID, int64(hashGeneration))
+						unverifiedBlocks.AddHashesCount(block.Block.MerkleTreeRoot, int64(hashGeneration))
 					} else {
 						waitQueue = append( waitQueue, j )
 
@@ -227,7 +283,7 @@ func attendMiningChannel() {
 						log.Debug("MINER_WIN_TIME_NS=" + strconv.FormatInt(elapsedTimeNs, 10))
 						log.Debug("MINER_WIN_TIME_MS=" + strconv.FormatInt(elapsedTimeMs, 10))
 
-						hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.TID)
+						hashesGenerated := unverifiedBlocks.GetDelHashesCount(block.Block.MerkleTreeRoot)
 						log.Info("HASHES_GENERATED=" + strconv.FormatInt(hashesGenerated, 10))
 
 						//roaming = true
@@ -262,9 +318,9 @@ func toMilliseconds( nano int64 ) int64 {
 	return nano / int64(time.Millisecond)
 }
 
-func eqIp( a net.IP, b net.IP ) bool {
-	return treesiplibs.CompareIPs(a, b)
-}
+//func eqIp( a net.IP, b net.IP ) bool {
+//	return treesiplibs.CompareIPs(a, b)
+//}
 
 func main() {
 
