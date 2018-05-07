@@ -14,6 +14,7 @@ import (
 	"github.com/onrik/gomerkle"
 	"crypto/sha256"
 	"strconv"
+	"encoding/hex"
 )
 
 // +++++++++++++++++++++++++++
@@ -91,7 +92,8 @@ func attendInputChannel() {
 					sum1 := sha256.Sum256([]byte( concat ))
 					sum2 := sha256.Sum256( sum1[:] )
 
-					preBlock.ID = string(sum2[:])
+					//preBlock.ID = string(sum2[:])
+					preBlock.ID = hex.EncodeToString(sum2[:])
 
 					// Adding the index to an array to delete the preblock after
 					indexes = append(indexes, index)
@@ -158,7 +160,7 @@ func getMerkleTreeRoot(transactions []bchainlibs.Transaction) string {
 		panic(err)
 	}
 
-	return string(tree.Root())
+	return hex.EncodeToString(tree.Root())
 }
 
 func randStringRunesInit() {
