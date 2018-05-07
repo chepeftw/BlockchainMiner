@@ -65,6 +65,7 @@ func attendInputChannel() {
 			switch payload.Type {
 
 			case bchainlibs.LastBlockType:
+				delete(preBlocks, payload.Block.QueryID)
 				lastBlock = payload.Block.ID
 				break
 
@@ -199,13 +200,22 @@ func main() {
 	logPath := c.LogPath
 
 	// Logger configuration
-	f := bchainlibs.PrepareLog(logPath, "miner")
+	logName := "miner"
+	f := bchainlibs.PrepareLogGen(logPath, logName, "data")
 	defer f.Close()
+	f2 := bchainlibs.PrepareLog(logPath, logName)
+	defer f2.Close()
 	backend := logging.NewLogBackend(f, "", 0)
+	backend2 := logging.NewLogBackend(f2, "", 0)
 	backendFormatter := logging.NewBackendFormatter(backend, bchainlibs.LogFormat)
 	backendLeveled := logging.AddModuleLevel(backendFormatter)
 	backendLeveled.SetLevel(logging.DEBUG, "")
-	logging.SetBackend(backendLeveled)
+
+	// Only errors and more severe messages should be sent to backend1
+	backend2Leveled := logging.AddModuleLevel(backend2)
+	backend2Leveled.SetLevel(logging.INFO, "")
+
+	logging.SetBackend(backendLeveled, backend2Leveled)
 
 	log.Info("")
 	log.Info("------------------------------------------------------------------------")
