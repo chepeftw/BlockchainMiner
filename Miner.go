@@ -47,7 +47,7 @@ func toOutput(payload bchainlibs.Packet) {
 
 func attendOutputChannel() {
 	log.Debug("Starting output channel")
-	bchainlibs.SendToNetwork(me.String(), bchainlibs.RouterPort, output, false, log, me)
+	bchainlibs.SendToNetwork(me.String(), bchainlibs.RouterPort, output, true, log, me)
 }
 
 // Function that handles the buffer channel
@@ -111,7 +111,10 @@ func attendInputChannel() {
 					log.Info( string(js) )
 					log.Info("-----------------------------------")
 
+					testp := bchainlibs.CreateTestPacket(me)
+					toOutput(testp)
 					toOutput(payload)
+					toOutput(testp)
 
 					// There should only be one
 				}
