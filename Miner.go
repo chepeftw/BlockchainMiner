@@ -104,6 +104,13 @@ func attendInputChannel() {
 
 					// Send it to the world
 					payload := bchainlibs.CreateBlockPacket(me, preBlock)
+
+					js, err := json.Marshal(payload)
+					bchainlibs.CheckError(err, log)
+					log.Info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+					log.Info( string(js) )
+					log.Info("-----------------------------------")
+
 					toOutput(payload)
 
 					// There should only be one
