@@ -10,8 +10,6 @@ import (
 
 	"time"
 	"os"
-	"sort"
-	"github.com/onrik/gomerkle"
 	"crypto/sha256"
 	"strconv"
 	"encoding/hex"
@@ -39,6 +37,7 @@ var done = make(chan bool)
 //// +++++++++ Unverified Blocks MAP with sync
 //var unverifiedBlocks = bchainlibs.MapBlocks{make(map[string]bchainlibs.Packet), make(map[string]int64), make(map[string]int64), sync.RWMutex{}}
 var preBlocks = make(map[string]bchainlibs.Block)
+var transactions = make(map[string][]bchainlibs.Transaction)
 
 func toOutput(payload bchainlibs.Packet) {
 	log.Debug("Sending Packet with ID " + payload.ID + " to channel output")
@@ -78,19 +77,19 @@ func attendInputChannel() {
 
 				for index, preBlock := range preBlocks {
 					// Setting all the important data
-					preBlock.MerkleTreeRoot = getMerkleTreeRoot( preBlock.Transactions )
+					merkleTreeRoot := bchainlibs.GetMerkleTreeRoot(transactions[preBlock.QueryID])
 					preBlock.Timestamp = time.Now().UnixNano()
-					preBlock.Nonce = randStringRunes(64)
+					preBlock.Nonce = randStringRunes(12)
 					preBlock.PreviousID = lastBlock
 
 					// Building THE ID
 					concat := preBlock.PreviousID
 					concat += preBlock.Nonce
 					concat += strconv.FormatInt(preBlock.Timestamp, 10)
-					concat += preBlock.MerkleTreeRoot
+					concat += merkleTreeRoot
 
 					sum1 := sha256.Sum256([]byte( concat ))
-					sum2 := sha256.Sum256( sum1[:] )
+					sum2 := sha256.Sum256(sum1[:])
 
 					//preBlock.ID = string(sum2[:])
 					preBlock.ID = hex.EncodeToString(sum2[:])
@@ -100,7 +99,7 @@ func attendInputChannel() {
 
 					// Just debugging the block
 					log.Info("BLOCK READY TO GO!!!")
-					log.Info( preBlock.String() )
+					log.Info(preBlock.String())
 
 					// Send it to the world
 					payload := bchainlibs.CreateBlockPacket(me, preBlock)
@@ -108,7 +107,7 @@ func attendInputChannel() {
 					js, err := json.Marshal(payload)
 					bchainlibs.CheckError(err, log)
 					log.Info(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-					log.Info( string(js) )
+					log.Info(string(js))
 					log.Info("-----------------------------------")
 
 					testp := bchainlibs.CreateTestPacket(me)
@@ -139,6 +138,18 @@ func attendInputChannel() {
 				toOutput(payload)
 				break
 
+			case bchainlibs.TransactionType:
+				log.Info("Packet with TransactionType, with PacketID: " + payload.ID)
+				if nil != payload.Transaction {
+					log.Info("It should be safe to say that Transaction is INDEED NOT EMPTY")
+					queryId := payload.Transaction.QueryID
+					transactions[queryId] = append(transactions[queryId], *payload.Transaction)
+				} else {
+					log.Error("Transaction IS EMPTY")
+				}
+
+				break
+
 			}
 
 		} else {
@@ -148,29 +159,6 @@ func attendInputChannel() {
 		}
 
 	}
-}
-
-func getMerkleTreeRoot(transactions []bchainlibs.Transaction) string {
-	sort.Slice(transactions, func(i, j int) bool {
-		return transactions[i].Order < transactions[j].Order
-	})
-
-	var data [][]byte
-
-	for _, transaction := range transactions {
-		byteArr := []byte( transaction.String() )
-		data = append(data, byteArr)
-	}
-
-	tree := gomerkle.NewTree(sha256.New())
-	tree.AddData(data...)
-
-	err := tree.Generate()
-	if err != nil {
-		panic(err)
-	}
-
-	return hex.EncodeToString(tree.Root())
 }
 
 func randStringRunesInit() {
