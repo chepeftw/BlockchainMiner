@@ -25,6 +25,8 @@ var me = net.ParseIP(bchainlibs.LocalhostAddr)
 //var miningWaitTime = 100
 
 var lastBlock = ""
+var miningStartTime1 = int64(0)
+var miningStartTime2 = int64(0)
 //var randomGen = rand.New(rand.NewSource(time.Now().UnixNano()))
 
 // +++++++++ Channels
@@ -69,6 +71,7 @@ func attendInputChannel() {
 				break
 
 			case bchainlibs.RaftResult:
+				miningStartTime2 = time.Now().UnixNano()
 				log.Info("Election RESULTS!!!")
 				log.Info("There are " + strconv.Itoa(len(preBlocks)) + " items in preBlocks")
 
@@ -111,9 +114,14 @@ func attendInputChannel() {
 					delete(preBlocks, index)
 				}
 
+				miningEndTime1 := time.Now().UnixNano() - miningStartTime1
+				miningEndTime2 := time.Now().UnixNano() - miningStartTime2
+				log.Debug("MINING_TIME_1=" + strconv.FormatInt(miningEndTime1, 10))
+				log.Debug("MINING_TIME_2=" + strconv.FormatInt(miningEndTime2, 10))
 				break
 
 			case bchainlibs.LaunchElection:
+				miningStartTime1 = time.Now().UnixNano()
 				log.Info("Election TIME!!!")
 
 				// Adding this for the next stage
