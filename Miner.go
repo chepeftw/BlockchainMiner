@@ -2,7 +2,6 @@ package main
 
 import (
 	"net"
-	"math/rand"
 	"encoding/json"
 
 	"github.com/op/go-logging"
@@ -79,7 +78,7 @@ func attendInputChannel() {
 					// Setting all the important data
 					merkleTreeRoot := bchainlibs.GetMerkleTreeRoot(transactions[preBlock.QueryID])
 					preBlock.Timestamp = time.Now().UnixNano()
-					preBlock.Nonce = randStringRunes(12)
+					preBlock.Nonce = bchainlibs.RandStringRunes(12)
 					preBlock.PreviousID = lastBlock
 
 					// Building THE ID
@@ -149,21 +148,6 @@ func attendInputChannel() {
 		}
 
 	}
-}
-
-func randStringRunesInit() {
-	rand.Seed(time.Now().UnixNano())
-}
-
-var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
-
-func randStringRunes(n int) string {
-	randStringRunesInit()
-	b := make([]rune, n)
-	for i := range b {
-		b[i] = letterRunes[rand.Intn(len(letterRunes))]
-	}
-	return string(b)
 }
 
 //func toMilliseconds( nano int64 ) int64 {
